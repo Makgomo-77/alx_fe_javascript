@@ -55,7 +55,7 @@ function displayQuote(quote) {
 }
 
 // Add a new quote to the database
-function addQuote() {
+function addQuoteForm() {
     const textInput = document.getElementById('newQuoteText');
     const categoryInput = document.getElementById('newQuoteCategory');
     
