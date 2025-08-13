@@ -20,7 +20,27 @@
         <input id="newQuoteText" type="text" placeholder="Enter quote text" />
         <input id="newQuoteCategory" type="text" placeholder="Enter category" />
         <button onclick="addQuote()">Add Quote</button>
+    </div> 
+  <div class="storage-actions">
+        <h3>Data Management</h3>
+        
+        <div class="storage-section">
+            <h4>Import/Export Quotes</h4>
+            <button id="exportQuotes">Export Quotes to JSON</button>
+            <input type="file" id="importFile" accept=".json" />
+            <button onclick="document.getElementById('importFile').click()">Import Quotes from JSON</button>
+        </div>
+        
+        <div class="storage-section">
+            <h4>Storage Management</h4>
+            <button id="clearLocalStorage">Clear All Saved Quotes</button>
+            <span id="storageStatus"></span>
+        </div>
     </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
 
     <script src="script.js"></script>
 </body>
