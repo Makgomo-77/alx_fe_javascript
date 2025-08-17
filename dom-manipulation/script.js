@@ -686,7 +686,7 @@ function handleCategoryFilterChange(event) {
 }
 
 // Set the current category filter
-function setCategoryFilter(category) {
+function filterQuote(category) {
     currentFilter = category;
     
     // Save filter preference
