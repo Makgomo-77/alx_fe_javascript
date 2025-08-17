@@ -569,7 +569,7 @@ async function syncWithServer() {
             lastServerQuotes = [...mergedQuotes];
             saveQuotes();
             updateUIAfterAdd();
-            showSyncMessage("Sync completed successfully", 'success');
+            showSyncMessage("Quotes synced with server!", 'success');
         }
     } catch (error) {
         console.error("Sync error:", error);
