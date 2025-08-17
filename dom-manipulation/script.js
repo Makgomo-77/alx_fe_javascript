@@ -413,6 +413,136 @@ function importFromJsonFile(event) {
 
 // ==================== SERVER SYNC FUNCTIONS ====================
 
+// Fetch quotes from server with proper headers
+async function fetchQuotesFromServer() {
+    try {
+        const response = await fetch(SERVER_URL, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // In our mock implementation, we'll extract quotes from the response
+        // For a real API, you would return data directly if it's the quotes array
+        return data.map(item => ({
+            text: item.title || item.text || "Default quote text",
+            category: item.category || "uncategorized"
+        }));
+        
+    } catch (error) {
+        console.error("Failed to fetch quotes from server:", error);
+        throw error;
+    }
+}
+
+// Post quotes to server
+async function postQuotesToServer(quotesToPost) {
+    try {
+        const response = await fetch(SERVER_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(quotesToPost)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to post quotes to server:", error);
+        throw error;
+    }
+}
+
+// Sync quotes between local and server
+async function syncQuotes() {
+    try {
+        showSyncMessage("Starting sync with server...", 'info');
+        
+        // 1. Get current server state
+        const serverQuotes = await fetchQuotesFromServer();
+        
+        // 2. Post our local changes to server
+        const localChanges = findLocalChanges(quotes, lastServerQuotes);
+        if (localChanges.length > 0) {
+            await postQuotesToServer(localChanges);
+        }
+        
+        // 3. Check for conflicts
+        const conflicts = findConflicts(quotes, serverQuotes);
+        
+        if (conflicts.length > 0) {
+            showConflictUI(conflicts, serverQuotes);
+        } else {
+            // No conflicts, merge changes
+            const mergedQuotes = mergeQuotes(quotes, serverQuotes);
+            quotes = mergedQuotes;
+            lastServerQuotes = [...mergedQuotes];
+            saveQuotes();
+            updateUIAfterAdd();
+            showSyncMessage("Sync completed successfully", 'success');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error("Sync error:", error);
+        showSyncMessage("Sync failed: " + error.message, 'error');
+        return false;
+    }
+}
+
+// Find changes made locally since last sync
+function findLocalChanges(currentQuotes, lastSyncedQuotes) {
+    const changes = [];
+    
+    // Find new quotes added locally
+    currentQuotes.forEach(quote => {
+        if (!lastSyncedQuotes.some(sq => sq.text === quote.text)) {
+            changes.push(quote);
+        }
+    });
+    
+    // Find modified quotes
+    currentQuotes.forEach(quote => {
+        const lastSyncedQuote = lastSyncedQuotes.find(sq => sq.text === quote.text);
+        if (lastSyncedQuote && lastSyncedQuote.category !== quote.category) {
+            changes.push(quote);
+        }
+    });
+    
+    return changes;
+}
+
+// Start periodic sync with server
+function startSyncInterval() {
+    // Clear existing interval if any
+    if (syncInterval) {
+        clearInterval(syncInterval);
+    }
+    
+    // Start new interval
+    syncInterval = setInterval(async () => {
+        await syncQuotes();
+    }, SYNC_INTERVAL);
+    
+    // Initial sync
+    syncQuotes();
+}
+
+// ==================== SERVER SYNC FUNCTIONS ====================
+
 // Start periodic sync with server
 function startSyncInterval() {
     syncInterval = setInterval(syncWithServer, SYNC_INTERVAL);
@@ -447,123 +577,5 @@ async function syncWithServer() {
     }
 }
 
-// Fetch quotes from server (mock implementation)
-async function fetchQuotesFromServer() {
-    try {
-        // In a real app, this would be a fetch to your actual API
-        // For this demo, we'll simulate a server response with some delay
-        
-        // Mock server response - in reality this would come from your API
-        const mockServerQuotes = [
-            { text: "The only way to do great work is to love what you do.", category: "work" },
-            { text: "Simplicity is the ultimate sophistication.", category: "design" },
-            { text: "Stay hungry, stay foolish.", category: "inspiration" }
-        ];
-        
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Return mock data
-        return mockServerQuotes;
-    } catch (error) {
-        console.error("Failed to fetch server quotes:", error);
-        throw error;
-    }
-}
 
-// Find conflicts between local and server quotes
-function findConflicts(localQuotes, serverQuotes) {
-    const conflicts = [];
-    
-    // Create a map of server quotes by text (assuming text is unique)
-    const serverQuoteMap = {};
-    serverQuotes.forEach(quote => {
-        serverQuoteMap[quote.text] = quote;
-    });
-    
-    // Check for conflicts
-    localQuotes.forEach(localQuote => {
-        const serverQuote = serverQuoteMap[localQuote.text];
-        if (serverQuote && serverQuote.category !== localQuote.category) {
-            conflicts.push({
-                text: localQuote.text,
-                localCategory: localQuote.category,
-                serverCategory: serverQuote.category
-            });
-        }
-    });
-    
-    return conflicts;
-}
-
-// Show conflict resolution UI
-function showConflictUI(conflicts, serverQuotes) {
-    conflictMessage.textContent = `Found ${conflicts.length} conflict(s) between local and server versions.`;
-    
-    // Show example conflicts
-    if (conflicts.length > 0) {
-        conflictMessage.textContent += ` Example: "${conflicts[0].text}" has category "${conflicts[0].localCategory}" locally but "${conflicts[0].serverCategory}" on server.`;
-    }
-    
-    conflictResolution.style.display = 'block';
-    syncStatus.className = 'sync-status sync-conflict';
-    syncStatus.textContent = `Sync paused due to ${conflicts.length} conflict(s)`;
-    syncStatus.style.display = 'block';
-}
-
-// Resolve conflicts based on user choice
-function resolveConflict(resolutionType) {
-    conflictResolution.style.display = 'none';
-    
-    switch (resolutionType) {
-        case 'server':
-            // Use server version
-            quotes = lastServerQuotes;
-            showSyncMessage("Used server version, discarding local changes", 'success');
-            break;
-        case 'local':
-            // Keep local version
-            showSyncMessage("Kept local version, ignoring server changes", 'success');
-            break;
-        case 'merge':
-            // Merge changes intelligently
-            quotes = mergeQuotes(quotes, lastServerQuotes);
-            showSyncMessage("Merged changes from both versions", 'success');
-            break;
-    }
-    
-    saveQuotes();
-    updateUIAfterAdd();
-}
-
-// Merge local and server quotes
-function mergeQuotes(localQuotes, serverQuotes) {
-    const mergedQuotes = [...localQuotes];
-    const localTexts = localQuotes.map(quote => quote.text);
-    
-    // Add server quotes that don't exist locally
-    serverQuotes.forEach(serverQuote => {
-        if (!localTexts.includes(serverQuote.text)) {
-            mergedQuotes.push(serverQuote);
-        }
-    });
-    
-    return mergedQuotes;
-}
-
-// Show sync status message
-function showSyncMessage(message, type) {
-    syncStatus.textContent = message;
-    syncStatus.className = `sync-status sync-${type}`;
-    syncStatus.style.display = 'block';
-    
-    // Hide after 5 seconds
-    setTimeout(() => {
-        if (syncStatus.textContent === message) {
-            syncStatus.style.display = 'none';
-        }
-    }, 5000);
-}
-
-// Initialize the application
-document.addEventListener('DOMContentLoaded', init);
+            
