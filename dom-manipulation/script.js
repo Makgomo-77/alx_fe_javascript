@@ -328,7 +328,7 @@ function updateCategoryButtons() {
 }
 
 // Set the current category
-function setCategory(category) {
+function populateCategories(category) {
     currentCategory = category;
     showRandomQuote();
 }
