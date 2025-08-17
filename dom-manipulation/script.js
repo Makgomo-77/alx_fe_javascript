@@ -328,7 +328,7 @@ function updateCategoryButtons() {
 }
 
 // Set the current category
-function populateCategories(category) {
+function setCategory(category) {
     currentCategory = category;
     showRandomQuote();
 }
@@ -726,7 +726,7 @@ function restoreFilterPreference() {
 }
 
 // Display a random quote filtered by current category
-function showRandomQuote() {
+function selectedCategory() {
     let filteredQuotes = currentFilter 
         ? quotes.filter(quote => quote.category === currentFilter)
         : quotes;
