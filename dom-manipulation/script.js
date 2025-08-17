@@ -577,5 +577,218 @@ async function syncWithServer() {
     }
 }
 
+// Configuration
+const LOCAL_STORAGE_KEY = 'savedQuotes';
+const FILTER_STORAGE_KEY = 'lastCategoryFilter';
 
+// Initial quotes
+let quotes = [
+    { text: "The only way to do great work is to love what you do.", category: "work" },
+    { text: "Life is what happens when you're busy making other plans.", category: "life" },
+    { text: "In the middle of difficulty lies opportunity.", category: "inspiration" }
+];
+
+// DOM elements
+const quoteDisplay = document.getElementById('quoteDisplay');
+const newQuoteBtn = document.getElementById('newQuote');
+const categoryButtons = document.getElementById('categoryButtons');
+const categoryFilter = document.getElementById('categoryFilter');
+
+// Current filter state
+let currentFilter = null;
+
+// Initialize the app
+function init() {
+    loadQuotes();
+    setupEventListeners();
+    populateCategories();
+    restoreFilterPreference();
+    showRandomQuote();
+}
+
+// Load quotes from local storage
+function loadQuotes() {
+    const savedQuotes = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedQuotes) {
+        try {
+            quotes = JSON.parse(savedQuotes);
+        } catch (e) {
+            console.error("Failed to parse saved quotes", e);
+        }
+    }
+}
+
+// Save quotes to local storage
+function saveQuotes() {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(quotes));
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    newQuoteBtn.addEventListener('click', showRandomQuote);
+    categoryFilter.addEventListener('change', handleCategoryFilterChange);
+    
+    const form = document.getElementById('addQuoteForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        addQuote();
+    });
+}
+
+// Populate category filter options
+function populateCategories() {
+    // Clear existing options except "All Categories"
+    while (categoryFilter.options.length > 1) {
+        categoryFilter.remove(1);
+    }
+    
+    // Clear category buttons
+    categoryButtons.innerHTML = '';
+    
+    // Get all unique categories
+    const categories = [...new Set(quotes.map(quote => quote.category))];
+    
+    // Add "All Categories" button
+    const allButton = document.createElement('button');
+    allButton.textContent = 'All Categories';
+    allButton.onclick = () => setCategoryFilter(null);
+    allButton.className = !currentFilter ? 'active' : '';
+    categoryButtons.appendChild(allButton);
+    
+    // Add category options to select and buttons
+    categories.forEach(category => {
+        // Add to dropdown
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categoryFilter.appendChild(option);
+        
+        // Add as button
+        const button = document.createElement('button');
+        button.textContent = category;
+        button.onclick = () => setCategoryFilter(category);
+        button.className = currentFilter === category ? 'active' : '';
+        categoryButtons.appendChild(button);
+    });
+    
+    // Set selected value in dropdown
+    if (currentFilter) {
+        categoryFilter.value = currentFilter;
+    } else {
+        categoryFilter.value = 'all';
+    }
+}
+
+// Handle category filter change from dropdown
+function handleCategoryFilterChange(event) {
+    const value = event.target.value;
+    setCategoryFilter(value === 'all' ? null : value);
+}
+
+// Set the current category filter
+function setCategoryFilter(category) {
+    currentFilter = category;
+    
+    // Save filter preference
+    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(currentFilter));
+    
+    // Update UI
+    updateActiveFilterButtons();
+    showRandomQuote();
+}
+
+// Update active state of filter buttons
+function updateActiveFilterButtons() {
+    const buttons = categoryButtons.querySelectorAll('button');
+    buttons.forEach(button => {
+        const isAllButton = button.textContent === 'All Categories';
+        const matchesFilter = 
+            (!currentFilter && isAllButton) || 
+            (currentFilter && button.textContent === currentFilter);
+        
+        button.className = matchesFilter ? 'active' : '';
+    });
+    
+    // Update dropdown selection
+    categoryFilter.value = currentFilter || 'all';
+}
+
+// Restore filter preference from storage
+function restoreFilterPreference() {
+    const savedFilter = localStorage.getItem(FILTER_STORAGE_KEY);
+    if (savedFilter) {
+        try {
+            currentFilter = JSON.parse(savedFilter);
+        } catch (e) {
+            console.error("Failed to parse saved filter", e);
+        }
+    }
+}
+
+// Display a random quote filtered by current category
+function showRandomQuote() {
+    let filteredQuotes = currentFilter 
+        ? quotes.filter(quote => quote.category === currentFilter)
+        : quotes;
+    
+    if (filteredQuotes.length === 0) {
+        quoteDisplay.innerHTML = '<p>No quotes available for this category.</p>';
+        return;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * filteredQuotes.length);
+    const quote = filteredQuotes[randomIndex];
+    displayQuote(quote);
+}
+
+// Display a specific quote
+function displayQuote(quote) {
+    quoteDisplay.innerHTML = `
+        <div class="quote-text">"${quote.text}"</div>
+        <div class="quote-category">— ${quote.category}</div>
+    `;
+}
+
+// Add a new quote
+function addQuote() {
+    const textInput = document.getElementById('newQuoteText');
+    const categoryInput = document.getElementById('newQuoteCategory');
+    
+    const text = textInput.value.trim();
+    const category = categoryInput.value.trim();
+    
+    if (!text || !category) {
+        alert('Please enter both quote text and category');
+        return;
+    }
+    
+    // Check for duplicates
+    const isDuplicate = quotes.some(quote => 
+        quote.text.toLowerCase() === text.toLowerCase() && 
+        quote.category.toLowerCase() === category.toLowerCase()
+    );
+    
+    if (isDuplicate) {
+        alert('This quote already exists in this category!');
+        return;
+    }
+    
+    // Add new quote
+    const newQuote = { text, category };
+    quotes.push(newQuote);
+    
+    // Save to local storage
+    saveQuotes();
+    
+    // Update UI
+    populateCategories();
+    showRandomQuote();
+    
+    // Clear form
+    textInput.value = '';
+    categoryInput.value = '';
+}
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', init);
             
