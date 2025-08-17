@@ -448,7 +448,7 @@ async function syncWithServer() {
 }
 
 // Fetch quotes from server (mock implementation)
-async function fetchServerQuotes() {
+async function fetchQuotesFromServer() {
     try {
         // In a real app, this would be a fetch to your actual API
         // For this demo, we'll simulate a server response with some delay
